@@ -399,6 +399,19 @@
   .pw-btn:hover { background: #333; }
   .pw-error { color: var(--red); font-size: 12px; margin-top: 8px; }
 
+  .del-btn {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(248,113,113,0.3);
+    background: rgba(248,113,113,0.08);
+    color: var(--red);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .del-btn:hover { background: rgba(248,113,113,0.2); }
+
   /* 이름 검색 */
   .search-wrap {
     margin-bottom: 16px;
@@ -666,7 +679,10 @@ function renderElem(s) {
           <div class="student-sub">${s.grade} · 초등</div>
         </div>
       </div>
-      ${statusBadge(s.status)}
+      <div style="display:flex;align-items:center;gap:6px">
+        ${statusBadge(s.status)}
+        ${isT ? `<button class="del-btn" onclick="deleteStudent('elem','${s.id}','${s.name}')">삭제</button>` : ''}
+      </div>
     </div>
     <div class="card-body">
       <div class="field">
@@ -715,7 +731,10 @@ function renderMid(s) {
           <div class="student-sub">${s.grade} · 중등</div>
         </div>
       </div>
-      ${statusBadge(s.status)}
+      <div style="display:flex;align-items:center;gap:6px">
+        ${statusBadge(s.status)}
+        ${isT ? `<button class="del-btn" onclick="deleteStudent('mid','${s.id}','${s.name}')">삭제</button>` : ''}
+      </div>
     </div>
     <div class="card-body">
       <div class="field">
@@ -755,7 +774,10 @@ function renderHighCard(s) {
           <div class="student-sub">${s.grade} · ${s.school || '학교 미입력'}</div>
         </div>
       </div>
-      ${statusBadge(s.status)}
+      <div style="display:flex;align-items:center;gap:6px">
+        ${statusBadge(s.status)}
+        ${isT ? `<button class="del-btn" onclick="deleteStudent('high','${s.id}','${s.name}')">삭제</button>` : ''}
+      </div>
     </div>
     <div class="card-body">
       <div class="field">
@@ -919,6 +941,14 @@ function addStudent() {
     data.high.push({ id, name, grade, school, examDate:'', examRange:'', range:'', question:'', status:'waiting', updated:'' });
   }
   saveLocal(); render();
+}
+
+
+function deleteStudent(tab, id, name) {
+  if (!confirm(name + ' 학생을 삭제할까요?')) return;
+  data[tab] = data[tab].filter(s => s.id !== id);
+  saveLocal();
+  render();
 }
 
 // ─── 초기화 ────────────────────────────────────────────
