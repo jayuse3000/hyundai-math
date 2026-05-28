@@ -399,6 +399,46 @@
   .pw-btn:hover { background: #333; }
   .pw-error { color: var(--red); font-size: 12px; margin-top: 8px; }
 
+  /* 이름 검색 */
+  .search-wrap {
+    margin-bottom: 16px;
+  }
+
+  .search-box {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 16px;
+    transition: border-color 0.2s;
+  }
+
+  .search-box:focus {
+    outline: none;
+    border-color: #555;
+  }
+
+  .search-box::placeholder { color: var(--text-muted); }
+
+  .search-result-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 8px;
+    padding-left: 4px;
+  }
+
+  .not-found {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-muted);
+  }
+
+  .not-found-icon { font-size: 40px; margin-bottom: 12px; }
+  .not-found-text { font-size: 14px; }
+
   @media (max-width: 480px) {
     .grid { grid-template-columns: 1fr; }
     .summary { flex-wrap: wrap; }
@@ -445,6 +485,11 @@
   </button>
 </div>
 
+<div id="search-area" style="display:none" class="search-wrap">
+  <input class="search-box" type="text" id="search-input" placeholder="🔍 이름 입력 (예: 홍길동)" oninput="onSearch(this.value)" autocomplete="off">
+  <div class="search-result-label" id="search-label"></div>
+</div>
+
 <div id="summary-bar" class="summary"></div>
 <div id="grid" class="grid"></div>
 
@@ -453,6 +498,7 @@ const TEACHER_PW = '1234'; // ← 비밀번호 여기서 변경
 
 let currentTab = 'elem';
 let currentMode = 'student'; // 기본은 학생모드
+let searchQuery = '';
 
 // ─── 데이터 ─────────────────────────────────────────────
 let data = {
@@ -570,8 +616,23 @@ function enterStudentMode() {
 }
 
 // ─── 모드 / 탭 ────────────────────────────────────────
+function onSearch(val) {
+  searchQuery = val.trim();
+  render();
+}
+
 function setMode(mode) {
   currentMode = mode;
+  searchQuery = '';
+  const searchArea = document.getElementById('search-area');
+  const searchInput = document.getElementById('search-input');
+  if (mode === 'student') {
+    searchArea.style.display = 'block';
+    searchInput.value = '';
+    setTimeout(() => searchInput.focus(), 100);
+  } else {
+    searchArea.style.display = 'none';
+  }
   document.getElementById('btn-teacher').classList.toggle('active', mode === 'teacher');
   document.getElementById('btn-student').classList.toggle('active', mode === 'student');
   render();
@@ -742,25 +803,51 @@ function renderHighCard(s) {
 function render() {
   document.getElementById('today-date').textContent = todayStr();
 
-  const students = data[currentTab];
-  const done     = students.filter(s => s.status === 'done').length;
-  const progress = students.filter(s => s.status === 'progress').length;
-  const waiting  = students.filter(s => s.status === 'waiting').length;
+  const allStudents = data[currentTab];
+
+  // 학생 모드 검색 필터
+  let students = allStudents;
+  if (currentMode === 'student' && searchQuery) {
+    students = allStudents.filter(s => s.name.includes(searchQuery));
+  }
+
+  // 검색 라벨
+  const labelEl = document.getElementById('search-label');
+  if (labelEl) {
+    if (currentMode === 'student') {
+      if (!searchQuery) labelEl.textContent = '이름을 입력하면 본인 카드만 표시돼요.';
+      else if (students.length === 0) labelEl.textContent = '';
+      else labelEl.textContent = `${students.length}명 검색됨`;
+    } else {
+      labelEl.textContent = '';
+    }
+  }
+
+  const done     = allStudents.filter(s => s.status === 'done').length;
+  const progress = allStudents.filter(s => s.status === 'progress').length;
+  const waiting  = allStudents.filter(s => s.status === 'waiting').length;
   const colors   = { elem: 'var(--accent-elem)', mid: 'var(--accent-mid)', high: 'var(--accent-high)' };
   const c = colors[currentTab];
 
   document.getElementById('summary-bar').innerHTML = `
-    <div class="summary-item"><div class="summary-num" style="color:${c}">${students.length}</div><div class="summary-label">전체</div></div>
+    <div class="summary-item"><div class="summary-num" style="color:${c}">${allStudents.length}</div><div class="summary-label">전체</div></div>
     <div class="summary-item"><div class="summary-num" style="color:var(--green)">${done}</div><div class="summary-label">완료</div></div>
     <div class="summary-item"><div class="summary-num" style="color:var(--yellow)">${progress}</div><div class="summary-label">진행중</div></div>
     <div class="summary-item"><div class="summary-num" style="color:var(--text-muted)">${waiting}</div><div class="summary-label">대기</div></div>
   `;
 
-  let html = students.map(s => {
-    if (currentTab === 'elem') return renderElem(s);
-    if (currentTab === 'mid')  return renderMid(s);
-    return renderHighCard(s);
-  }).join('');
+  let html = '';
+  if (currentMode === 'student' && !searchQuery) {
+    html = `<div class="not-found"><div class="not-found-icon">👆</div><div class="not-found-text">이름을 입력해서 본인 카드를 찾으세요</div></div>`;
+  } else if (currentMode === 'student' && students.length === 0) {
+    html = `<div class="not-found"><div class="not-found-icon">🔍</div><div class="not-found-text">"${searchQuery}" 이름을 찾을 수 없어요</div></div>`;
+  } else {
+    html = students.map(s => {
+      if (currentTab === 'elem') return renderElem(s);
+      if (currentTab === 'mid')  return renderMid(s);
+      return renderHighCard(s);
+    }).join('');
+  }
 
   if (currentMode === 'teacher') {
     html += `<button class="add-btn" onclick="addStudent()">＋ 학생 추가</button>`;
